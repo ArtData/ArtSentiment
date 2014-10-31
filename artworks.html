@@ -1,0 +1,197 @@
+﻿<!DOCTYPE html>
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript" src="./plugins/jquery.jqplot.min.js"></script>
+    <script type="text/javascript" src="./plugins/jqplot.highlighter.min.js"></script>
+    <script type="text/javascript" src="./plugins/jqplot.cursor.min.js"></script>
+    <script type="text/javascript" src="./plugins/jqplot.dateAxisRenderer.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="/plugins/jquery.jqplot.css" />
+    <script>
+        $(document).ready(function() {
+            getArtists(100);
+
+            $("#artistSelect").change(function() {
+              var artistID = $(this).find('option:selected').attr('value');
+              getArtworksforArtist(artistID);
+              document.getElementById('placeholder').innerHTML = "";
+              setTimeout(function () { plotSentimentchart() }, 3000);
+            });
+
+        });
+
+        var APIauthorization = {
+            user:"sfmoma01",
+            password:"art+data",
+        };
+
+        var sentimentArray = new Array();
+        var artworktitleArray = new Array();
+        var plotLine = new Array();
+
+        function getArtwork(){
+            var artworkID = $("#txtArtworkID").val()
+            getArtworkTitle(artworkID)
+        }
+
+        function getArtists(numResults){
+            //retrieves artist ID's, names and details
+            var getArtistsAPIURL = "https://api.sfmoma.org/collection/artists?per_page=" + numResults;
+            var username = "sfmoma01";
+            var password = "art+data";
+            var artistName = new Array();
+            var artistID = new Array();
+
+            $.ajax({
+                url: getArtistsAPIURL,
+                type: 'GET',
+                datatype: 'json',
+                success: function (data) {
+                    for (var i in data) {
+                        artistName[i] = data[i].name.complete;
+                        artistID[i] = data[i].artist_id;
+                    }
+
+                    for (var i=0; i<artistName.length; i++){
+                        $('#artistSelect').append($('<option>', {
+                            value: artistID[i],
+                            text: artistName[i]
+                        }));
+                    }
+                },
+                error:function(xhr,err){
+                    alert("readyState: "+xhr.readyState+"\nstatus: "+xhr.status);
+                    alert("responseText: "+xhr.responseText);
+                },
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("per_page", "20");
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(APIauthorization.user + ":" + APIauthorization.password));
+                }
+            });
+        }
+
+        function getArtworksforArtist(artistID){
+            var getArtworksAPIURL = "https://api.sfmoma.org/collection/artists/" + artistID;
+            var artworkTitle = new Array();
+            var artworkDate = new Array();
+
+            $.ajax({
+                url: getArtworksAPIURL,
+                type: 'GET',
+                datatype: 'json',
+                success: function (data) {
+                    var artworks = data.artworks;
+                    for (var i in artworks) {
+                        artworkTitle[i] = artworks[i].display_title;
+                        artworkDate[i] = artworks[i].display_date;
+                    }
+
+                    for (var i = 0; i < artworkTitle.length; i++) {
+                        getSentiment(artworkTitle[i], artworkDate[i]);
+                    };
+                },
+                error:function(xhr,err){
+                    alert("readyState: "+xhr.readyState+"\nstatus: "+xhr.status);
+                    alert("responseText: "+xhr.responseText);
+                },
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(APIauthorization.user + ":" + APIauthorization.password));
+                },
+                complete: function () {
+                    //alert("complete");
+                }
+            });
+        }
+
+
+       function getArtworkTitle(id){
+            var getArtworkAPIURL = "https://api.sfmoma.org/collection/artworks/" + id;
+
+            $.ajax({
+                url: getArtworkAPIURL,
+                type: 'GET',
+                datatype: 'json',
+                success: function (data) {
+                    artworkTitle = data.display_title;
+                    getSentiment(artworkTitle);
+                },
+                error:function(xhr,err){
+                    alert("readyState: "+xhr.readyState+"\nstatus: "+xhr.status);
+                    alert("responseText: "+xhr.responseText);
+                },
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("Authorization", "Basic " + btoa(APIauthorization.user + ":" + APIauthorization.password));
+                }
+            });
+        }
+
+        function getSentiment(strArtworkTitle, strArtworkYear){
+            var sentimentAPIURL = "https://twinword-sentiment-analysis.p.mashape.com/analyze/";
+            var sentimentType = "";
+            var sentimentScore;
+            var sentimentResultCode;
+            var sentimentResultMsg;
+
+            $.ajax({
+                url: sentimentAPIURL,
+                type: 'GET',
+                data: {text: strArtworkTitle}, // Parameters go here
+                datatype: 'json',
+                success: function (data) {
+                    var parsed = JSON.parse(data);
+                    sentimentType = parsed['type'];
+                    sentimentScore = parsed['score'];
+                    sentimentResultCode = parsed['result_code'];
+                    sentimentResultMsg = parsed['result_msg'];
+                    var artLine = document.getElementById('placeholder').innerHTML;
+                    artLine += "<b>Title: </b>" + strArtworkTitle + " <b>Year: </b>" + strArtworkYear + " <b>Sentiment: </b>" + sentimentScore + "<br>";
+                    document.getElementById('placeholder').innerHTML = artLine
+
+                    sentimentArray[sentimentArray.length] = sentimentScore;
+                    artworktitleArray[artworktitleArray.length] = strArtworkTitle;
+
+                },
+                error: function (err) {
+                    alert(err);
+                },
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("X-Mashape-Authorization", "Yl4k5vIwYomshg0luTIKE2vHIJvvp1RRMcRjsncP8ImvJa5kba");
+                }
+            });
+        }
+
+        function plotSentimentchart(){
+            console.log("sentimentArray: " + sentimentArray);
+            
+            plotLine = "[" + plotLine + "]";
+            console.log("plotLine: " + plotLine);
+            $.jqplot('chartdiv', [sentimentArray],
+            {
+                title: 'Sentiment',
+                axes: { yaxis: { min: -1, max: 1, ticks: [[-1, 'Negative'], -0.8, -0.6, -0.4, -0.2, [0, 'Neutral'], 0.2, 0.4, 0.6, 0.8, [1, 'Positive']] } },
+                series: [{ color: '#5FAB78' }],
+                highlighter: {
+                    show: true,
+                    sizeAdjust: 7.5
+                },
+                cursor: {
+                    show: false
+                }
+            });
+            sentimentArray.length = 0;
+            plotLine = "";
+        }
+
+
+
+    </script>
+</head>
+
+<body>
+    <select id="artistSelect">
+        <option>Select an artist</option>
+    </select>
+    <div id="chartdiv" style="height:500px;width:800px;"></div>
+    <div id="placeholder"></div>
+</body>
+</html>
