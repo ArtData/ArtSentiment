@@ -9,7 +9,7 @@
     <link rel="stylesheet" type="text/css" href="/plugins/jquery.jqplot.css" />
     <script>
         $(document).ready(function() {
-            getArtists(100);
+            getArtists(100); //default number of artists to retrieve to show in the artist dropdown
 
             $("#artistSelect").change(function() {
               var artistID = $(this).find('option:selected').attr('value');
@@ -21,9 +21,11 @@
         });
 
         var APIauthorization = {
-            user:"sfmoma01",
-            password:"art+data",
+            user:"sfmoma01", // username for SFMOMA Collection API
+            password:"art+data", // Password fpr SFMOMA Collection API
         };
+
+        var mashape_key = "your_key_here"; //you'll need a mashape Key
 
         var sentimentArray = new Array();
         var artworktitleArray = new Array();
@@ -155,7 +157,7 @@
                     alert(err);
                 },
                 beforeSend: function (xhr) {
-                    xhr.setRequestHeader("X-Mashape-Authorization", "Yl4k5vIwYomshg0luTIKE2vHIJvvp1RRMcRjsncP8ImvJa5kba");
+                    xhr.setRequestHeader("X-Mashape-Authorization", mashape_key);
                 }
             });
         }
